@@ -1,36 +1,37 @@
-import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, AlertTriangle, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router';
-import { GlassCard } from '@/components/common/GlassCard';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { CameraView } from '@/features/scanner/components/CameraView';
-import { ScanStatus } from '@/features/scanner/components/ScanStatus';
-import { WasteInfoPanel } from '@/features/waste/components/WasteInfoPanel';
-import { RecyclingBins } from '@/features/sorting/components/RecyclingBins';
-import { SuccessAnimation } from '@/features/sorting/components/SuccessAnimation';
-import { getStatus, scanImage, getDemoItems, getDemoResult, ApiError } from '@/lib/api';
-import { resizeImage } from '@/lib/image';
-import type { WasteResult, DemoItem } from '@/features/waste/types';
-import { useNavbarConfig } from '@/context/NavbarContext';
+import { useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, AlertTriangle, X } from "lucide-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router";
+import { GlassCard } from "@/components/common/GlassCard";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { CameraView } from "@/features/scanner/components/CameraView";
+import { ScanStatus } from "@/features/scanner/components/ScanStatus";
+import { WasteInfoPanel } from "@/features/waste/components/WasteInfoPanel";
+import { RecyclingBins } from "@/features/sorting/components/RecyclingBins";
+import { SuccessAnimation } from "@/features/sorting/components/SuccessAnimation";
+import {
+  getStatus,
+  scanImage,
+  getDemoItems,
+  getDemoResult,
+  ApiError,
+} from "@/lib/api";
+import { resizeImage } from "@/lib/image";
+import type { WasteResult, DemoItem } from "@/features/waste/types";
+import { useNavbarConfig } from "@/context/NavbarContext";
 
-type ScannerState =
-  | 'idle'
-  | 'scanning'
-  | 'result'
-  | 'answered'
-  | 'error';
+type ScannerState = "idle" | "scanning" | "result" | "answered" | "error";
 
 const POINTS_PER_CORRECT = 10;
-const POINTS_KEY = 'ecoscan_points';
+const POINTS_KEY = "ecoscan_points";
 
 export function ScannerPage() {
   const navigate = useNavigate();
   const { setConfig } = useNavbarConfig();
-  const [state, setState] = useState<ScannerState>('idle');
+  const [state, setState] = useState<ScannerState>("idle");
   const [currentResult, setCurrentResult] = useState<WasteResult | null>(null);
   const [ecoPoints, setEcoPoints] = useState(() => {
     try {
@@ -42,17 +43,19 @@ export function ScannerPage() {
   });
   const [aiEnabled, setAiEnabled] = useState(true);
   const [selectedBin, setSelectedBin] = useState<
-    'recyclable' | 'organic' | 'non-recyclable' | 'special' | null
+    "recyclable" | "organic" | "non-recyclable" | "special" | null
   >(null);
   const [resultCorrect, setResultCorrect] = useState<boolean | null>(null);
   const [showDemoSelector, setShowDemoSelector] = useState(false);
   const [demoItems, setDemoItems] = useState<DemoItem[]>([]);
-  const [errorToastId, setErrorToastId] = useState<string | number | null>(null);
+  const [errorToastId, setErrorToastId] = useState<string | number | null>(
+    null,
+  );
 
   useEffect(() => {
     setConfig({
-      onScanClick: () => setState('idle'),
-      onHomeClick: () => navigate('/'),
+      onScanClick: () => setState("idle"),
+      onHomeClick: () => navigate("/"),
       ecoPoints,
       showPoints: true,
       isScannerPage: true,
@@ -63,7 +66,9 @@ export function ScannerPage() {
     getStatus()
       .then((res) => setAiEnabled(res.aiEnabled))
       .catch(() => setAiEnabled(false));
-    getDemoItems().then(setDemoItems).catch(() => setDemoItems([]));
+    getDemoItems()
+      .then(setDemoItems)
+      .catch(() => setDemoItems([]));
   }, []);
 
   useEffect(() => {
@@ -84,7 +89,7 @@ export function ScannerPage() {
   const handleScanError = useCallback(
     (message: string) => {
       handleCloseError();
-      setState('error');
+      setState("error");
       const id = toast.custom(
         (id) => (
           <GlassCard
@@ -114,7 +119,7 @@ export function ScannerPage() {
             </div>
           </GlassCard>
         ),
-        { duration: Infinity, position: 'bottom-center' },
+        { duration: Infinity, position: "bottom-center" },
       );
       setErrorToastId(id);
     },
@@ -123,23 +128,23 @@ export function ScannerPage() {
 
   const handleCapture = useCallback(
     async (blob: Blob) => {
-      if (state !== 'idle') return;
-      setState('scanning');
+      if (state !== "idle") return;
+      setState("scanning");
       try {
         const resized = await resizeImage(blob);
         const result = await scanImage(resized);
-        if (result.itemName === 'Unknown') {
+        if (result.itemName === "Unknown") {
           setCurrentResult(result);
-          setState('result');
+          setState("result");
         } else {
           setCurrentResult(result);
-          setState('result');
+          setState("result");
         }
       } catch (err) {
         if (err instanceof ApiError) {
           handleScanError(err.message);
         } else {
-          handleScanError('An unexpected error occurred');
+          handleScanError("An unexpected error occurred");
         }
       }
     },
@@ -148,18 +153,18 @@ export function ScannerPage() {
 
   const handleDemoSelect = useCallback(
     async (id: string) => {
-      if (state !== 'idle') return;
+      if (state !== "idle") return;
       setShowDemoSelector(false);
-      setState('scanning');
+      setState("scanning");
       try {
         const result = await getDemoResult(id);
         setCurrentResult(result);
-        setState('result');
+        setState("result");
       } catch (err) {
         if (err instanceof ApiError) {
           handleScanError(err.message);
         } else {
-          handleScanError('Failed to load demo item');
+          handleScanError("Failed to load demo item");
         }
       }
     },
@@ -167,8 +172,8 @@ export function ScannerPage() {
   );
 
   const handleBinSelect = useCallback(
-    (binType: 'recyclable' | 'organic' | 'non-recyclable' | 'special') => {
-      if (!currentResult || state !== 'result') return;
+    (binType: "recyclable" | "organic" | "non-recyclable" | "special") => {
+      if (!currentResult || state !== "result") return;
       setSelectedBin(binType);
       const isCorrect = binType === currentResult.bin;
       setResultCorrect(isCorrect);
@@ -177,7 +182,7 @@ export function ScannerPage() {
         const newPoints = ecoPoints + POINTS_PER_CORRECT;
         setEcoPoints(newPoints);
       }
-      setState('answered');
+      setState("answered");
     },
     [currentResult, state, ecoPoints],
   );
@@ -186,17 +191,17 @@ export function ScannerPage() {
     setSelectedBin(null);
     setResultCorrect(null);
     setCurrentResult(null);
-    setState('idle');
+    setState("idle");
   }, []);
 
   const handleContinue = useCallback(() => {
     setSelectedBin(null);
     setResultCorrect(null);
     setCurrentResult(null);
-    setState('idle');
+    setState("idle");
   }, []);
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   return (
     <div className="min-h-screen bg-bg text-fg">
@@ -213,7 +218,7 @@ export function ScannerPage() {
               <CameraView
                 onCapture={handleCapture}
                 onError={handleScanError}
-                isScanning={state === 'scanning'}
+                isScanning={state === "scanning"}
                 demoMode={!aiEnabled}
                 onDemoOpen={() => setShowDemoSelector(true)}
               />
@@ -223,12 +228,16 @@ export function ScannerPage() {
               <GlassCard variant="elevated" className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold">Scan Status</h2>
-                  <Badge variant={aiEnabled ? 'success' : 'warning'} size="sm" dot>
-                    {aiEnabled ? 'AI ACTIVE' : 'DEMO MODE'}
+                  <Badge
+                    variant={aiEnabled ? "success" : "warning"}
+                    size="sm"
+                    dot
+                  >
+                    {aiEnabled ? "AI ACTIVE" : "DEMO MODE"}
                   </Badge>
                 </div>
                 <ScanStatus
-                  status={state === 'scanning' ? 'detecting' : 'idle'}
+                  status={state === "scanning" ? "detecting" : "idle"}
                 />
 
                 <div className="mt-6 pt-4 border-t border-line space-y-3">
@@ -278,7 +287,10 @@ export function ScannerPage() {
                 </ol>
               </GlassCard>
 
-              <GlassCard variant="subtle" className="p-4 text-center text-fg-dim text-xs">
+              <GlassCard
+                variant="subtle"
+                className="p-4 text-center text-fg-dim text-xs"
+              >
                 <p>Photos are sent to Google Gemini for analysis.</p>
               </GlassCard>
             </div>
@@ -287,7 +299,7 @@ export function ScannerPage() {
       </motion.section>
 
       <AnimatePresence>
-        {currentResult && (state === 'result' || state === 'answered') && (
+        {currentResult && (state === "result" || state === "answered") && (
           <WasteInfoPanel
             result={currentResult}
             onClose={handleRetry}
@@ -297,17 +309,19 @@ export function ScannerPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {state === 'result' && currentResult && currentResult.itemName !== 'Unknown' && (
-          <RecyclingBins
-            onBinSelect={handleBinSelect}
-            selectedBin={selectedBin}
-            disabled={false}
-          />
-        )}
+        {state === "result" &&
+          currentResult &&
+          currentResult.itemName !== "Unknown" && (
+            <RecyclingBins
+              onBinSelect={handleBinSelect}
+              selectedBin={selectedBin}
+              disabled={false}
+            />
+          )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {state === 'answered' && currentResult && (
+        {state === "answered" && currentResult && (
           <SuccessAnimation
             result={currentResult}
             isCorrect={resultCorrect === true}
@@ -326,7 +340,10 @@ export function ScannerPage() {
           className="max-h-[85svh] w-[calc(100%-1.5rem)] max-w-[42rem] gap-0 overflow-y-auto rounded-[22px] border border-line bg-bg-surface p-4 text-fg ring-0 sm:w-full sm:p-6"
         >
           <div className="flex items-center justify-between mb-6">
-            <DialogTitle id="demo-title" className="font-display text-2xl font-normal text-fg">
+            <DialogTitle
+              id="demo-title"
+              className="font-display text-2xl font-normal text-fg"
+            >
               Select Demo Object
             </DialogTitle>
             <Button
