@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { MousePointer2, Sparkles } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CornerMarkers, ScanLine } from '@/components/common/GlassCard';
 import { Logo } from '@/components/common/Logo';
@@ -8,10 +7,10 @@ import { clsx } from 'clsx';
 
 interface HeroSectionProps {
   onScanClick: () => void;
-  mode: 'ai' | 'demo';
+  onDemoClick: () => void;
 }
 
-export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
+export function HeroSection({ onScanClick, onDemoClick }: HeroSectionProps) {
   return (
     <section id="hero" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg pt-14 sm:pt-16">
       <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-brand-light/5" aria-hidden="true" />
@@ -21,26 +20,14 @@ export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
         <div className="max-w-6xl mx-auto">
           <div className="grid items-center gap-8 md:gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="lg:pl-8">
-              <motion.div
+              <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
-              >
-                <Badge variant="ai" size="sm" className="mb-6 w-fit">
-                  <Sparkles className="w-3 h-3 mr-1.5" aria-hidden="true" />
-                  {mode === 'ai' ? 'MODE' : 'DEMO MODE'}
-                </Badge>
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.18, ease: [0.25, 1, 0.5, 1] }}
                 className="font-display text-4xl font-normal leading-[1.05] tracking-tight text-fg text-balance sm:text-5xl lg:text-6xl xl:text-7xl"
               >
-                See what your
-                <br />
-                <span className="text-brand">waste becomes.</span>
+                Scan waste.{' '}
+                <span className="text-brand">Sort right.</span>
               </motion.h1>
 
               <motion.p
@@ -49,7 +36,7 @@ export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
                 transition={{ duration: 0.7, delay: 0.26, ease: [0.25, 1, 0.5, 1] }}
                 className="mt-6 w-full max-w-[36rem] text-lg leading-relaxed text-fg-muted text-balance lg:text-xl"
               >
-                Scan an object. Understand its impact. Sort it right.
+                Take a photo or upload an image. AI tells you which bin to use.
               </motion.p>
 
               <motion.div
@@ -65,12 +52,12 @@ export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
                   rightIcon={<MousePointer2 className="w-5 h-5" />}
                   className="w-full sm:w-auto"
                 >
-                  Start Scanning
+                  Start Scan
                 </Button>
                 <Button
                   variant="secondary"
                   size="lg"
-                  onClick={onScanClick}
+                  onClick={onDemoClick}
                   leftIcon={<Sparkles className="w-4 h-4" />}
                   className="w-full sm:w-auto"
                 >
@@ -86,7 +73,7 @@ export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
               >
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-brand" aria-hidden="true" />
-                  <span>Privacy-first processing</span>
+                  <span>Privacy-first</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-brand-light" aria-hidden="true" />
@@ -94,7 +81,7 @@ export function HeroSection({ onScanClick, mode }: HeroSectionProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-amber-primary" aria-hidden="true" />
-                  <span>9+ waste types</span>
+                  <span>4 bin types</span>
                 </div>
               </motion.div>
             </div>

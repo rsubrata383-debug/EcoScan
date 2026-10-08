@@ -1,11 +1,10 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 interface NavbarConfig {
   onScanClick: () => void;
   onHomeClick?: () => void;
   ecoPoints?: number;
   showPoints?: boolean;
-  onHistoryClick?: () => void;
   isScannerPage?: boolean;
 }
 
@@ -29,7 +28,7 @@ export function NavbarProvider({ children }: { children: ReactNode }) {
 export function useNavbarConfig() {
   const context = useContext(NavbarContext);
   if (!context) {
-    throw new Error("useNavbarConfig must be used within a NavbarProvider");
+    throw new Error('useNavbarConfig must be used within a NavbarProvider');
   }
   return context;
 }

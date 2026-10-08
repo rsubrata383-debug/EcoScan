@@ -19,7 +19,7 @@ export function useCamera(): UseCameraReturn {
   const checkCameraAvailability = useCallback(async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      const videoDevices = devices.filter((d) => d.kind === 'videoinput');
       setHasCamera(videoDevices.length > 0);
       return videoDevices.length > 0;
     } catch {
@@ -32,48 +32,54 @@ export function useCamera(): UseCameraReturn {
     checkCameraAvailability();
   }, [checkCameraAvailability]);
 
-  const startCamera = useCallback(async (facingMode: 'user' | 'environment' = 'environment'): Promise<MediaStream> => {
-    facingModeRef.current = facingMode;
-    setError(null);
+  const startCamera = useCallback(
+    async (facingMode: 'user' | 'environment' = 'environment'): Promise<MediaStream> => {
+      facingModeRef.current = facingMode;
+      setError(null);
 
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+      try {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+        }
+
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        };
+
+        const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
+        setHasCamera(true);
+        return mediaStream;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Camera access denied';
+        setError(errorMessage);
+        setHasCamera(false);
+        throw err;
       }
-
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = mediaStream;
-      setStream(mediaStream);
-      setHasCamera(true);
-      return mediaStream;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Camera access denied';
-      setError(errorMessage);
-      setHasCamera(false);
-      throw err;
-    }
-  }, []);
+    },
+    [],
+  );
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
       setStream(null);
     }
   }, []);
 
-  const switchCamera = useCallback(async (facingMode: 'user' | 'environment') => {
-    await startCamera(facingMode);
-  }, [startCamera]);
+  const switchCamera = useCallback(
+    async (facingMode: 'user' | 'environment') => {
+      await startCamera(facingMode);
+    },
+    [startCamera],
+  );
 
   useEffect(() => {
     return () => {

@@ -1,185 +1,163 @@
 # EcoScan — Scan, Learn, Sort
 
-An interactive AI-powered waste scanning and recycling assistant built for college project exhibitions. Scan waste items with your camera, get AI-powered classification, and learn proper disposal through an engaging drag-and-drop sorting experience.
+A simple AI-powered waste scanning app for college exhibitions. Take a photo of waste, get the correct bin, and learn proper disposal.
 
-## Features
+## Features (6 Core)
 
-- **AI Waste Detection** — Uses Google Gemini Vision API to identify waste items from camera images
-- **Real-time Camera Scanning** — Access device camera with proper permission handling
-- **Interactive Sorting** — Drag detected waste items to the correct recycling bin
-- **Satisfying Animations** — Polished Framer Motion animations for scanning, detection, and disposal
-- **Eco Points System** — Gamified scoring with persistent localStorage
-- **Scan History** — Track previously scanned items
-- **Demo Mode** — Fully functional without API key for presentations
-- **Special Waste Handling** — Proper warnings for batteries, e-waste, and hazardous materials
-- **Responsive Design** — Works on desktop, tablet, and mobile browsers
+1. **Camera Scan** — Take a photo with camera or upload from gallery. Clear message if camera permission denied.
+2. **AI Detection** — Sends photo to Spring Boot backend (`POST /api/scan`) which calls Google Gemini.
+3. **Result Screen** — Shows item name, correct bin (color + icon), and one-line tip.
+4. **Demo Mode** — Works when AI is off. Loads items from `GET /api/demo` and results from `GET /api/demo/{id}`.
+5. **Sorting Game** — Tap one of 4 bins (Recyclable/Organic/Non-recyclable/Special). Shows Correct/Wrong with right answer.
+6. **Eco Points** — +10 per correct answer, saved in localStorage (`ecoscan_points`), shown in navbar.
+
+## Pages (2)
+
+- `/` — Home: title, one sentence, "Start Scan" and "Try Demo" buttons.
+- `/scanner` — Scanner: camera/upload, result, 4 bins, points.
+- Unknown routes redirect to `/`.
 
 ## Tech Stack
 
-- **Framework:** React 18 + TypeScript
-- **Build Tool:** Vite
-- **Styling:** Tailwind CSS v4
-- **Animations:** Framer Motion
-- **AI Integration:** Google Gen AI SDK (@google/genai) with Gemini 2.5 Flash
-- **Icons:** Lucide React
-- **Camera API:** Browser MediaDevices API
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── common/
-│   │   └── GlassCard.tsx       # Reusable UI components (GlassCard, Button, Badge, ScanLine, CornerMarkers)
-│   ├── scanner/
-│   │   ├── CameraView.tsx      # Camera feed with scan frame and controls
-│   │   ├── DetectionOverlay.tsx # Animated bounding box overlay
-│   │   └── ScanStatus.tsx      # Scanning status indicator
-│   ├── waste/
-│   │   ├── WasteInfoPanel.tsx  # Detailed waste information panel
-│   │   └── WasteObject.tsx     # Draggable waste item with drag physics
-│   ├── bins/
-│   │   └── RecyclingBins.tsx   # Three recycling bins with hover/tap animations
-│   └── feedback/
-│       ├── SuccessAnimation.tsx # Sorting result modal with confetti
-│       └── PointsAnimation.tsx  # Animated points counter
-├── pages/
-│   └── ScannerPage.tsx         # Main scanner experience page
-├── services/
-│   ├── detectionService.ts     # Detection orchestration (AI + demo modes)
-│   └── geminiService.ts        # Gemini Vision API integration
-├── utils/
-│   └── wasteRules.ts           # Local waste classification rules
-├── hooks/
-│   └── useCamera.ts            # Camera permission and stream management
-├── App.tsx
-├── main.tsx
-└── index.css
-```
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui + Framer Motion + React Router
+- **Backend:** Spring Boot (separate repo, runs on `http://localhost:8080`)
+- **AI:** Google Gemini (called from backend, never from browser)
 
 ## Architecture
 
-```mermaid
-graph TD
-    A[Camera] --> B[Detection Layer]
-    B --> C{AI Mode?}
-    C -->|Yes| D[Gemini Vision API]
-    C -->|No| E[Demo Detection]
-    D --> F[Waste Classification]
-    E --> F
-    F --> G[Waste Rules Engine]
-    G --> H[Recycling Recommendation]
-    H --> I[Interactive Sorting]
-    I --> J[Eco Points]
-    I --> K[Scan History]
+```
+┌─────────────┐     HTTP/JSON      ┌──────────────┐     ┌─────────────┐
+│  Browser    │ ◄─────────────────► │ Spring Boot  │ ◄──► │ Google      │
+│  (React)    │  /api/scan         │  (Java)      │      │  Gemini     │
+└─────────────┘                    └──────────────┘      └─────────────┘
+       │
+       │  getUserMedia / file input
+       ▼
+┌─────────────┐
+│  Camera     │
+│  / Gallery  │
+└─────────────┘
 ```
 
-## How It Works
+## Backend API (already built)
 
-1. **Camera Access** — Requests camera permission on load, with fallback to demo mode
-2. **Scan Trigger** — User taps "Scan" to capture a frame from the video stream
-3. **AI Analysis** — Image sent to Gemini Vision API (or demo mode simulates detection)
-4. **Results Display** — Bounding box appears with waste name and confidence
-5. **Information Panel** — Shows material, decomposition time, environmental impact, recommended bin
-6. **Three Bins Appear** — Organic (green), Recyclable (blue), Non-recyclable (red)
-7. **Drag & Drop** — User drags waste item toward a bin
-8. **Disposal Animation** — Item animates into bin with lid open/close, particles for correct sorting
-9. **Feedback** — Correct/incorrect result with points awarded
-10. **History** — Scan recorded in local history
+Base URL: `http://localhost:8080`
 
-## Demo Mode
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/status` | Returns `{ "aiEnabled": boolean }` |
+| POST | `/api/scan` | Multipart form-data `image` → `WasteResult` |
+| GET | `/api/demo` | Returns `DemoItem[]` |
+| GET | `/api/demo/{id}` | Returns `WasteResult` |
 
-The application automatically enters **Demo Mode** when no `VITE_GEMINI_API_KEY` is configured. In demo mode:
-- Tap "Try Demo Object" to select from 9 sample waste items
-- Simulates realistic detection delay (800-1500ms)
-- Full sorting experience works without camera or API
-- Perfect for presentations on devices without cameras
+**WasteResult:**
+```json
+{
+  "itemName": "Plastic Bottle",
+  "category": "Plastic",
+  "bin": "recyclable",
+  "tip": "Rinse and recycle. Cap on."
+}
+```
 
-Sample demo objects: Plastic Bottle, Aluminum Can, Banana Peel, Paper, Glass Bottle, Food Waste, Plastic Bag, Battery, Cardboard
+**Errors:** JSON `{ "message": string }` with status 400, 404, 413, 502, 503.
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
+- Java 21 + Maven (for backend)
 
-### Installation
+### Frontend
 
 ```bash
-# Navigate to project directory
 cd ecoscan
-
-# Install dependencies
 npm install
-
-# Copy environment template
 cp .env.example .env
-
-# Add your Gemini API key to .env (optional - works in demo mode without it)
-# VITE_GEMINI_API_KEY=your_api_key_here
-
-# Start development server
 npm run dev
 ```
+Runs on `http://localhost:5173`. The Vite dev proxy forwards `/api/*` to `http://localhost:8080`.
 
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_GEMINI_API_KEY` | No | Google Gemini API key from [AI Studio](https://aistudio.google.com/app/apikey). Demo mode works without it. |
-
-### Building for Production
+### Backend
 
 ```bash
-npm run build
+# In your Spring Boot project
+mvn spring-boot:run
 ```
+Runs on `http://localhost:8080`.
 
-Output will be in the `dist/` directory.
+### Production (Single JAR)
 
-## Camera Requirements
+1. `npm run build` → creates `dist/`
+2. Copy `dist/` contents to Spring Boot `src/main/resources/static/`
+3. Add Spring config for SPA fallback:
+```java
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+        registry.addViewController("/**").setViewName("forward:/index.html");
+    }
+}
+```
+4. Package: `mvn package` → single JAR serves both frontend and API.
 
-- **HTTPS or localhost** — Browser camera API requires secure context
-- **Permission** — User must grant camera access
-- **Mobile Support** — Works on Android Chrome, iOS Safari 14+
-- **Fallback** — Demo mode works without camera
+## Environment Variables
 
-## Gemini API Setup
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | `""` (empty) | Backend base URL. Empty = same origin (uses Vite proxy in dev). |
 
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Create a new API key
-3. Add to `.env` file: `VITE_GEMINI_API_KEY=your_key_here`
-4. Restart dev server
+## Test Checklist
 
-**Security Note:** Frontend API keys are visible in browser applications. For production deployments, use a backend/serverless proxy to protect credentials.
+- [ ] **Demo mode** — Backend stopped, click "Try Demo", select item, tap bins, verify points.
+- [ ] **Gallery upload** — Click "Upload Photo", pick image, verify result.
+- [ ] **Camera** — Grant permission, tap "SCAN", verify result.
+- [ ] **Permission denied** — Block camera, verify clear message + fallback to upload/demo.
+- [ ] **Wrong file type** — Upload non-image, verify friendly error.
+- [ ] **Backend stopped** — Kill backend, scan, verify "Cannot reach server" message.
+- [ ] **AI off** — Backend returns `aiEnabled: false`, verify banner + demo only.
+- [ ] **Unknown item** — Backend returns `itemName: "Unknown"`, verify tip + retry button (no game).
+- [ ] **Wrong bin answer** — Tap wrong bin, verify "Wrong" + correct bin shown.
+- [ ] **Points persist** — Earn points, refresh page, verify points remain.
 
-## Waste Classification Rules
+## Project Structure (src/)
 
-The app uses a local rule engine (`src/utils/wasteRules.ts`) that maps detected items to disposal categories:
-
-| Category | Bin | Examples |
-|----------|-----|----------|
-| Recyclable | Blue ♻️ | Plastic bottles, aluminum cans, paper, cardboard, glass |
-| Organic | Green 🌱 | Food waste, banana peels, vegetable scraps |
-| Non-recyclable | Red 🗑️ | Plastic bags, film, contaminated items |
-| Special Disposal | Amber ⚠️ | Batteries, electronics, light bulbs |
-
-## Future Improvements
-
-- [ ] Replace Gemini with on-device YOLO model for offline detection
-- [ ] Add barcode scanning for product-specific recycling info
-- [ ] Community-sourced recycling location finder
-- [ ] Multi-language support
-- [ ] PWA installation for offline demo mode
-- [ ] Admin dashboard for waste rule management
-- [ ] Integration with municipal recycling APIs
+```
+src/
+├── components/
+│   ├── common/           # GlassCard, Logo, Navbar, ScanLine, CornerMarkers, PulseRing, ProgressBar
+│   ├── ui/               # Button, Badge, Dialog, Card, etc. (shadcn/ui)
+│   └── feedback/         # PointsAnimation
+├── context/
+│   └── NavbarContext.tsx # Simple navbar config (logo, points, callbacks)
+├── features/
+│   ├── landing/
+│   │   └── components/HeroSection.tsx
+│   ├── scanner/
+│   │   ├── components/CameraView.tsx, ScanStatus.tsx
+│   │   └── hooks/useCamera.ts
+│   ├── sorting/
+│   │   └── components/RecyclingBins.tsx, SuccessAnimation.tsx
+│   └── waste/
+│       ├── components/WasteInfoPanel.tsx
+│       ├── binInfo.ts         # Bin colors, labels, icons, descriptions
+│       └── types.ts           # WasteResult, DemoItem, BinType
+├── lib/
+│   ├── api.ts           # Backend calls (getStatus, scanImage, getDemoItems, getDemoResult)
+│   ├── image.ts         # resizeImage() for camera frames & uploads
+│   └── utils.ts         # cn() helper
+├── pages/
+│   ├── LandingPage.tsx
+│   └── ScannerPage.tsx
+├── hooks/
+│   ├── use-mobile.ts
+│   └── useTheme.ts
+├── App.tsx
+├── main.tsx
+└── styles/index.css
+```
 
 ## License
 
-MIT License — Built for educational/demo purposes.
-
-## Credits
-
-- **Design:** Custom eco-tech aesthetic with green/blue/red semantic color system
-- **Animations:** Framer Motion for production-quality micro-interactions
-- **AI:** Google Gemini 2.5 Flash for vision understanding
-- **Icons:** Lucide React + Unicode emojis for waste items
+MIT — Educational demo.

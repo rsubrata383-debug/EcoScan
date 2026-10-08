@@ -1,151 +1,83 @@
-import { useRef, useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import {
   Camera,
   RotateCcw,
   Image,
-  X,
   Sparkles,
   Zap,
   Shield,
-  AlertTriangle,
-} from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { GlassCard, ScanLine, CornerMarkers } from "@/components/common/GlassCard";
-import { Logo } from "@/components/common/Logo";
-import { DetectionOverlay } from "./DetectionOverlay";
-import { ScanStatus } from "./ScanStatus";
-import { useCamera } from "@/features/scanner/hooks/useCamera";
-import {
-  detectionService,
-} from "@/features/waste/services/detectionService";
-import type { WasteDetection } from "@/features/waste/types";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { GlassCard, ScanLine, CornerMarkers } from '@/components/common/GlassCard';
+import { Logo } from '@/components/common/Logo';
+import { ScanStatus } from './ScanStatus';
+import { useCamera } from '@/features/scanner/hooks/useCamera';
 
 interface CameraViewProps {
-  onDetection: (detection: WasteDetection) => void;
+  onCapture: (blob: Blob) => void;
   onError: (error: string) => void;
   isScanning: boolean;
-  isAnalyzing: boolean;
-  currentDetection: WasteDetection | null;
   demoMode: boolean;
-  onDemoSelect: (id: string) => void;
+  onDemoOpen: () => void;
 }
 
 export function CameraView({
-  onDetection,
+  onCapture,
   onError,
   isScanning,
-  isAnalyzing,
-  currentDetection,
   demoMode,
-  onDemoSelect,
+  onDemoOpen,
 }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [permissionState, setPermissionState] = useState<
-    "prompt" | "granted" | "denied"
-  >("prompt");
-  const [facingMode] = useState<"environment" | "user">("environment");
-  const [showDemoSelector, setShowDemoSelector] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
+  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+  const [facingMode] = useState<'environment' | 'user'>('environment');
   const { startCamera, stopCamera, switchCamera, hasCamera } = useCamera();
-  const demoObjects = detectionService.getDemoObjects();
 
-  const captureFrame = useCallback((): string | null => {
+  const captureFrame = useCallback((): Blob | null => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || video.videoWidth === 0) return null;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-    return dataUrl.split(",")[1];
+    return new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+    }) as unknown as Blob;
   }, []);
 
-  const handleScan = async () => {
-    if (demoMode) {
-      setShowDemoSelector(true);
-      return;
-    }
-
-    if (!stream) {
-      onError("Camera not available");
-      return;
-    }
-
-    setScanProgress(0);
-    const progressInterval = setInterval(() => {
-      setScanProgress((prev) => Math.min(prev + 10, 90));
-    }, 100);
-
-    const imageData = captureFrame();
-    if (!imageData) {
-      clearInterval(progressInterval);
-      setScanProgress(0);
-      onError("Failed to capture image");
-      return;
-    }
-
-    try {
-      const result = await detectionService.detectFromImage(imageData);
-      clearInterval(progressInterval);
-      setScanProgress(100);
-      if (result.success && result.detection) {
-        if (result.mode === "demo" && !demoMode) {
-          toast.custom(
-            () => (
-              <GlassCard
-                variant="elevated"
-                className="w-[calc(100vw-2rem)] max-w-[20rem] border-amber-primary/20 bg-amber-primary/5 p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-primary/10 border border-amber-primary/20 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle
-                      className="w-5 h-5 text-amber-primary"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-amber-primary text-sm">
-                      AI Temporarily Unavailable
-                    </p>
-                    <p className="text-fg-muted text-xs mt-1">
-                      Using demo detection.
-                    </p>
-                  </div>
-                </div>
-              </GlassCard>
-            ),
-            {
-              duration: 4000,
-              position: "bottom-center",
-              style: { marginBottom: "80px" },
-            },
-          );
-        }
-        onDetection(result.detection);
-      } else {
-        setScanProgress(0);
-        onError(result.error || "Detection failed");
+  const handleFileUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        onError('Please select an image file');
+        return;
       }
-    } catch (err) {
-      clearInterval(progressInterval);
-      setScanProgress(0);
-      onError("Detection error occurred");
-    }
-  };
+      onCapture(file);
+    },
+    [onCapture, onError],
+  );
 
-  const handleDemoSelect = (id: string) => {
-    setShowDemoSelector(false);
-    onDemoSelect(id);
+  const handleCapture = async () => {
+    if (!stream) {
+      onError('Camera not available');
+      return;
+    }
+
+    const blob = captureFrame();
+    if (!blob) {
+      onError('Failed to capture image');
+      return;
+    }
+    onCapture(blob);
   };
 
   useEffect(() => {
@@ -155,16 +87,12 @@ export function CameraView({
         const mediaStream = await startCamera(facingMode);
         if (mounted) {
           setStream(mediaStream);
-          setPermissionState("granted");
+          setPermissionState('granted');
         }
       } catch (err) {
         if (mounted) {
-          setPermissionState("denied");
-          if (!demoMode) {
-            onError(
-              "Camera access denied. Enable camera permissions or use Demo Mode.",
-            );
-          }
+          setPermissionState('denied');
+          onError('Camera access denied. Please enable permissions or use gallery upload.');
         }
       }
     };
@@ -192,15 +120,10 @@ export function CameraView({
 
   const renderDemoMode = () => (
     <div className="relative flex h-[70svh] min-h-[30rem] max-h-[48rem] w-full flex-col overflow-hidden rounded-[22px] bg-scanner-bg sm:h-[calc(100svh-5rem)] lg:h-[calc(100svh-6rem)] lg:max-h-none">
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-brand-light/5"
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-brand-light/5" aria-hidden="true" />
 
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center justify-center">
-        <Badge variant="warning" size="sm" dot>
-          DEMO MODE
-        </Badge>
+        <Badge variant="warning" size="sm" dot>DEMO MODE</Badge>
       </div>
 
       <div className="relative z-10 flex flex-1 items-center justify-center p-3 sm:p-6 lg:p-8">
@@ -214,12 +137,7 @@ export function CameraView({
             <motion.div
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
-              transition={{
-                delay: 0.2,
-                type: "spring",
-                stiffness: 400,
-                damping: 20,
-              }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 400, damping: 20 }}
               className="w-24 h-24 rounded-[20px] bg-brand/10 border border-brand/20 flex items-center justify-center mx-auto mb-6"
             >
               <Sparkles className="w-12 h-12 text-brand" aria-hidden="true" />
@@ -235,22 +153,12 @@ export function CameraView({
 
             <Button
               size="xl"
-              onClick={() => setShowDemoSelector(true)}
+              onClick={onDemoOpen}
               leftIcon={<Image className="w-5 h-5" />}
               rightIcon={<Sparkles className="w-5 h-5" />}
               className="mx-auto mb-4 w-full max-w-[20rem]"
             >
               Try Demo Object
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => setShowDemoSelector(true)}
-              leftIcon={<RotateCcw className="w-4 h-4" />}
-              className="mx-auto w-full max-w-[20rem]"
-            >
-              Simulate Random Scan
             </Button>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-6 text-fg-dim text-sm">
@@ -263,10 +171,7 @@ export function CameraView({
                 <span>Instant Results</span>
               </div>
               <div className="flex items-center gap-2">
-                <Sparkles
-                  className="w-4 h-4 text-amber-primary"
-                  aria-hidden="true"
-                />
+                <Sparkles className="w-4 h-4 text-amber-primary" aria-hidden="true" />
                 <span>9+ Waste Types</span>
               </div>
             </div>
@@ -274,97 +179,15 @@ export function CameraView({
         </motion.div>
       </div>
 
-      <Dialog open={showDemoSelector} onOpenChange={setShowDemoSelector}>
-        <DialogContent
-          aria-labelledby="demo-title"
-          showCloseButton={false}
-          className="max-h-[85svh] w-[calc(100%-1.5rem)] max-w-[42rem] gap-0 overflow-y-auto rounded-[22px] border border-line bg-bg-surface p-4 text-fg ring-0 sm:w-full sm:p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <DialogTitle
-              id="demo-title"
-              className="font-display text-2xl font-normal text-fg"
-            >
-              Select Demo Object
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDemoSelector(false)}
-              aria-label="Close demo selector"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {demoObjects.map((obj) => (
-              <motion.button
-                key={obj.id}
-                onClick={() => handleDemoSelect(obj.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="group p-4 rounded-xl bg-bg-elevated/50 border border-line hover:border-brand/30 hover-solid text-left"
-              >
-                <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
-                  {obj.icon}
-                </div>
-                <div className="font-medium text-fg mb-2">{obj.name}</div>
-                <Badge
-                  variant={
-                    obj.category === "special"
-                      ? "warning"
-                      : obj.category === "recyclable"
-                        ? "success"
-                        : obj.category === "organic"
-                          ? "info"
-                          : "danger"
-                  }
-                  size="sm"
-                >
-                  {obj.category}
-                </Badge>
-              </motion.button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
         <Button
-          variant="primary"
-          size="xl"
-          onClick={handleScan}
-          disabled={isScanning || isAnalyzing}
-          isLoading={isScanning || isAnalyzing}
-          leftIcon={<Camera className="w-5 h-5" />}
-          rightIcon={
-            isAnalyzing ? (
-              <Sparkles className="w-5 h-5 animate-spin" />
-            ) : (
-              <Zap className="w-5 h-5" />
-            )
-          }
-          className="w-16 h-16 rounded-full p-0 shadow-[0_0_30px_rgba(63,125,88,0.3)] hover:shadow-[0_0_50px_rgba(63,125,88,0.4)] flex items-center justify-center min-h-[60px]"
+          variant="secondary"
+          size="lg"
+          onClick={onDemoOpen}
+          leftIcon={<Image className="w-5 h-5" />}
+          className="min-h-[48px] w-full max-w-xs"
         >
-          {isAnalyzing ? (
-            <motion.span
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="text-xs"
-            >
-              AI
-            </motion.span>
-          ) : isScanning ? (
-            <motion.span
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="text-xs"
-            >
-              SCAN
-            </motion.span>
-          ) : (
-            <span className="text-xs font-medium">SCAN</span>
-          )}
+          Open Demo Gallery
         </Button>
       </div>
     </div>
@@ -372,25 +195,17 @@ export function CameraView({
 
   const renderPermissionDenied = () => (
     <div className="relative flex h-[70svh] min-h-[30rem] max-h-[48rem] w-full items-center justify-center overflow-hidden rounded-[22px] bg-scanner-bg sm:h-[calc(100svh-5rem)] lg:h-[calc(100svh-6rem)] lg:max-h-none">
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-red-primary/5 via-transparent to-transparent"
-        aria-hidden="true"
-      />
-      <GlassCard
-        variant="elevated"
-        className="relative z-10 mx-3 w-full max-w-[28rem] p-4 text-center sm:mx-4 sm:p-8"
-      >
+      <div className="absolute inset-0 bg-gradient-to-br from-red-primary/5 via-transparent to-transparent" aria-hidden="true" />
+      <GlassCard variant="elevated" className="relative z-10 mx-3 w-full max-w-[28rem] p-4 text-center sm:mx-4 sm:p-8">
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           className="w-16 h-16 rounded-xl bg-red-primary/10 border border-red-primary/20 flex items-center justify-center mx-auto mb-4"
         >
           <Camera className="w-8 h-8 text-red-primary" aria-hidden="true" />
         </motion.div>
-        <h3 className="font-display text-2xl font-normal text-fg mb-2">
-          Camera Access Required
-        </h3>
+        <h3 className="font-display text-2xl font-normal text-fg mb-2">Camera Access Required</h3>
         <p className="text-fg-muted text-base mb-6 leading-relaxed">
           Camera access is required to scan waste. Please enable camera
           permissions in your browser settings.
@@ -402,11 +217,7 @@ export function CameraView({
           >
             Retry Camera
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setShowDemoSelector(true)}
-            leftIcon={<Image className="w-5 h-5" />}
-          >
+          <Button variant="secondary" onClick={onDemoOpen} leftIcon={<Image className="w-5 h-5" />}>
             Use Demo Mode
           </Button>
         </div>
@@ -415,15 +226,11 @@ export function CameraView({
   );
 
   if (demoMode) return renderDemoMode();
-  if (permissionState === "denied" || !hasCamera)
-    return renderPermissionDenied();
+  if (permissionState === 'denied' || !hasCamera) return renderPermissionDenied();
 
   return (
     <div className="relative flex h-[70svh] min-h-[30rem] max-h-[48rem] w-full flex-col overflow-hidden rounded-[22px] bg-scanner-bg sm:h-[calc(100svh-5rem)] lg:h-[calc(100svh-6rem)] lg:max-h-none">
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-brand-light/5"
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand/5 via-transparent to-brand-light/5" aria-hidden="true" />
 
       <video
         ref={videoRef}
@@ -456,21 +263,14 @@ export function CameraView({
             animate={{ opacity: 1, x: 0 }}
             className="flex items-center gap-2"
           >
-            <Badge
-              variant={demoMode ? "warning" : "success"}
-              size="sm"
-              dot
-              className="hidden sm:inline-flex"
-            >
-              {demoMode ? "DEMO MODE" : "ACTIVE"}
+            <Badge variant={demoMode ? 'warning' : 'success'} size="sm" dot className="hidden sm:inline-flex">
+              {demoMode ? 'DEMO MODE' : 'ACTIVE'}
             </Badge>
             <Button
               variant="ghost"
               size="sm"
               onClick={() =>
-                switchCamera(
-                  facingMode === "environment" ? "user" : "environment",
-                )
+                switchCamera(facingMode === 'environment' ? 'user' : 'environment')
               }
               aria-label="Switch camera"
               className="hidden sm:flex"
@@ -483,30 +283,23 @@ export function CameraView({
         <div className="flex-1 flex items-center justify-center">
           <div className="relative aspect-square w-[78%] max-w-[400px]">
             <CornerMarkers color="green" animated size="lg" />
-            <ScanLine
-              color="green"
-              speed={isScanning || isAnalyzing ? 1.8 : 3.5}
-            />
+            <ScanLine color="green" speed={isScanning ? 1.8 : 3.5} />
 
             <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-center">
               <motion.p
-                key={isAnalyzing ? "analyzing" : "scanning"}
+                key={isScanning ? 'scanning' : 'idle'}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="text-xs text-fg/50 uppercase tracking-widest font-medium"
               >
-                {isAnalyzing ? "ANALYZING OBJECT..." : "SCAN YOUR WASTE"}
+                {isScanning ? 'SCANNING...' : 'POINT CAMERA AT WASTE'}
               </motion.p>
             </div>
 
             <div className="absolute bottom-[-50px] left-1/2 -translate-x-1/2 text-center">
-              <ScanStatus
-                status={
-                  isAnalyzing ? "detecting" : isScanning ? "scanning" : "idle"
-                }
-              />
+              <ScanStatus status={isScanning ? 'scanning' : 'idle'} />
             </div>
           </div>
         </div>
@@ -515,20 +308,14 @@ export function CameraView({
           <Button
             variant="primary"
             size="xl"
-            onClick={handleScan}
-            disabled={isScanning || isAnalyzing}
-            isLoading={isScanning || isAnalyzing}
+            onClick={handleCapture}
+            disabled={isScanning}
+            isLoading={isScanning}
             leftIcon={<Camera className="w-5 h-5" />}
-            rightIcon={
-              isAnalyzing ? (
-                <Sparkles className="w-5 h-5 animate-spin" />
-              ) : (
-                <Zap className="w-5 h-5" />
-              )
-            }
+            rightIcon={isScanning ? <Sparkles className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
             className="w-16 h-16 rounded-full p-0 shadow-[0_0_30px_rgba(63,125,88,0.3)] hover:shadow-[0_0_50px_rgba(63,125,88,0.4)] flex items-center justify-center min-h-[60px]"
           >
-            {isAnalyzing ? (
+            {isScanning ? (
               <motion.span
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1, repeat: Infinity }}
@@ -536,32 +323,31 @@ export function CameraView({
               >
                 AI
               </motion.span>
-            ) : isScanning ? (
-              <motion.span
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="text-xs"
-              >
-                SCAN
-              </motion.span>
             ) : (
               <span className="text-xs font-medium">SCAN</span>
             )}
           </Button>
 
-          {(demoMode || !hasCamera) && (
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => setShowDemoSelector(true)}
-              leftIcon={<Image className="w-4 h-4" />}
-              className="min-h-[44px]"
-            >
-              Try Demo Object
-            </Button>
-          )}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileUpload}
+            className="hidden"
+            id="file-upload"
+            aria-label="Upload photo from gallery"
+          />
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => document.getElementById('file-upload')?.click()}
+            leftIcon={<Image className="w-4 h-4" />}
+            className="min-h-[44px]"
+          >
+            Upload Photo
+          </Button>
 
-          {(isScanning || isAnalyzing) && (
+          {isScanning && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -570,78 +356,17 @@ export function CameraView({
             >
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${scanProgress}%` }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
+                animate={{ width: '100%' }}
+                transition={{ duration: 1, ease: 'easeOut' }}
                 className="h-full rounded-full bg-gradient-to-r from-brand to-brand-light"
-                style={{ boxShadow: "0 0 16px rgba(63, 125, 88, 0.4)" }}
+                style={{ boxShadow: '0 0 16px rgba(63, 125, 88, 0.4)' }}
               />
             </motion.div>
           )}
         </div>
       </div>
 
-      <DetectionOverlay
-        detection={currentDetection}
-        isVisible={!!currentDetection}
-      />
-
       <div className="safe-bottom" aria-hidden="true" />
-
-      <Dialog open={showDemoSelector} onOpenChange={setShowDemoSelector}>
-        <DialogContent
-          aria-labelledby="demo-title"
-          showCloseButton={false}
-          className="max-h-[85svh] w-[calc(100%-1.5rem)] max-w-[42rem] gap-0 overflow-y-auto rounded-[22px] border border-line bg-bg-surface p-4 text-fg ring-0 sm:w-full sm:p-6"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <DialogTitle
-              id="demo-title"
-              className="font-display text-2xl font-normal text-fg"
-            >
-              Select Demo Object
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDemoSelector(false)}
-              aria-label="Close demo selector"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {demoObjects.map((obj) => (
-              <motion.button
-                key={obj.id}
-                onClick={() => handleDemoSelect(obj.id)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="group p-4 rounded-xl bg-bg-elevated/50 border border-line hover:border-brand/30 hover-solid text-left"
-              >
-                <div className="text-5xl mb-2 group-hover:scale-110 transition-transform">
-                  {obj.icon}
-                </div>
-                <div className="font-medium text-fg mb-2">{obj.name}</div>
-                <Badge
-                  variant={
-                    obj.category === "special"
-                      ? "warning"
-                      : obj.category === "recyclable"
-                        ? "success"
-                        : obj.category === "organic"
-                          ? "info"
-                          : "danger"
-                  }
-                  size="sm"
-                >
-                  {obj.category}
-                </Badge>
-              </motion.button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }

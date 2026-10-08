@@ -1,17 +1,14 @@
-export interface WasteDetection {
+export type BinType = 'recyclable' | 'organic' | 'non-recyclable' | 'special';
+
+export interface WasteResult {
+  itemName: string;
+  category: 'Plastic' | 'Organic' | 'E-Waste' | 'Paper' | 'Metal' | 'Glass' | 'Other';
+  bin: BinType;
+  tip: string;
+}
+
+export interface DemoItem {
+  id: string;
   name: string;
-  category: "recyclable" | "organic" | "non-recyclable" | "special";
-  material: string;
-  confidence: number;
-  bin: "recyclable" | "organic" | "non-recyclable" | "special";
-  decompositionTime: string;
-  description: string;
-  environmentalImpact: "Low" | "Medium" | "High";
-  disposalMethod?: string;
-  boundingBox?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  icon: string;
 }

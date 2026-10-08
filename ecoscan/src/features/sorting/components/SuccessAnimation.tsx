@@ -4,16 +4,8 @@ import { CheckCircle, XCircle, Sparkles, Shield, Recycle, Leaf } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { GlassCard } from '@/components/common/GlassCard';
-import type { WasteDetection } from '@/features/waste/types';
-import { getBinLabel, getBinDescription } from '@/features/waste/utils/wasteRules';
-
-interface SuccessAnimationProps {
-  detection: WasteDetection;
-  isCorrect: boolean;
-  pointsEarned: number;
-  onContinue: () => void;
-  onRetry?: () => void;
-}
+import type { WasteResult } from '@/features/waste/types';
+import { getBinLabel, getBinDescription } from '@/features/waste/binInfo';
 
 const binEmojis = {
   recyclable: '♻️',
@@ -32,11 +24,11 @@ function Particle({ delay, color }: { delay: number; color: string }) {
     <motion.div
       initial={{ opacity: 0, y: 0, x: 0, rotate: 0, scale: 0 }}
       animate={{ opacity: 0, y, x, rotate: rotation, scale: 1 }}
-      transition={{ 
-        delay, 
-        duration: 1.2 + Math.random() * 0.5, 
+      transition={{
+        delay,
+        duration: 1.2 + Math.random() * 0.5,
         ease: 'easeOut',
-        opacity: { duration: 1, ease: 'easeOut' }
+        opacity: { duration: 1, ease: 'easeOut' },
       }}
       className="absolute top-1/2 left-1/2"
       style={{
@@ -50,10 +42,27 @@ function Particle({ delay, color }: { delay: number; color: string }) {
   );
 }
 
-export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinue, onRetry }: SuccessAnimationProps) {
-  const binEmoji = binEmojis[detection.bin as keyof typeof binEmojis] || '🗑️';
-  const binLabel = getBinLabel(detection.bin);
-  const binDesc = getBinDescription(detection.bin);
+interface SuccessAnimationProps {
+  result: WasteResult;
+  isCorrect: boolean;
+  selectedBin: 'recyclable' | 'organic' | 'non-recyclable' | 'special' | null;
+  pointsEarned: number;
+  onContinue: () => void;
+  onRetry: () => void;
+}
+
+export function SuccessAnimation({
+  result,
+  isCorrect,
+  selectedBin,
+  pointsEarned,
+  onContinue,
+  onRetry,
+}: SuccessAnimationProps) {
+  const binEmoji = binEmojis[result.bin] || '🗑️';
+  const binLabel = getBinLabel(result.bin);
+  const binDesc = getBinDescription(result.bin);
+  const selectedBinLabel = selectedBin ? getBinLabel(selectedBin) : '';
 
   return (
     <Dialog open onOpenChange={() => {}}>
@@ -106,7 +115,7 @@ export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinu
                 transition={{ delay: isCorrect ? 0.25 : 0.2 }}
                 className={clsx('font-display text-2xl lg:text-3xl font-normal mb-3', isCorrect ? 'text-green-primary' : 'text-amber-primary')}
               >
-                {isCorrect ? 'Correct Sorting' : 'Not Quite Right'}
+                {isCorrect ? 'Correct!' : 'Wrong Bin'}
               </motion.h2>
 
               <motion.p
@@ -115,10 +124,9 @@ export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinu
                 transition={{ delay: isCorrect ? 0.3 : 0.25 }}
                 className="mx-auto mb-7 max-w-[24rem] text-base leading-relaxed text-fg-muted"
               >
-                {isCorrect 
-                  ? `Excellent! ${detection.name} belongs in the ${binLabel.toLowerCase()} bin.`
-                  : `${detection.name} is generally ${detection.category.replace('-', ' ')}. Try the ${binLabel.toLowerCase()} bin.`
-                }
+                {isCorrect
+                  ? `Great! ${result.itemName} goes in the ${binLabel.toLowerCase()} bin.`
+                  : `${result.itemName} belongs in the ${binLabel.toLowerCase()} bin. You selected ${selectedBinLabel.toLowerCase()}.`}
               </motion.p>
 
               <motion.div
@@ -147,22 +155,12 @@ export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinu
                 transition={{ delay: isCorrect ? 0.4 : 0.35 }}
                 className="flex flex-col sm:flex-row gap-3"
               >
-                {onRetry && !isCorrect && (
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={onRetry}
-                    leftIcon={<Sparkles className="w-4 h-4" />}
-                  >
+                {!isCorrect && (
+                  <Button variant="outline" className="flex-1" onClick={onRetry} leftIcon={<Sparkles className="w-4 h-4" />}>
                     Try Again
                   </Button>
                 )}
-                <Button
-                  variant={isCorrect ? 'primary' : 'secondary'}
-                  className="flex-1"
-                  onClick={onContinue}
-                  rightIcon={<Sparkles className="w-4 h-4" />}
-                >
+                <Button variant={isCorrect ? 'primary' : 'secondary'} className="flex-1" onClick={onContinue} rightIcon={<Sparkles className="w-4 h-4" />}>
                   {isCorrect ? 'Next Scan' : 'Next Item'}
                 </Button>
               </motion.div>
@@ -176,15 +174,11 @@ export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinu
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-3xl" aria-hidden="true">{binEmoji}</span>
                   <div className="text-left">
-                    <p className="font-medium text-fg text-sm">
-                      {binLabel} Bin
-                    </p>
+                    <p className="font-medium text-fg text-sm">{binLabel} Bin</p>
                     <p className="text-fg-muted text-xs">{binDesc}</p>
                   </div>
                 </div>
-                <p className="text-fg-muted text-sm leading-relaxed">
-                  {detection.description}
-                </p>
+                <p className="text-fg-muted text-sm leading-relaxed">{result.tip}</p>
               </motion.div>
 
               <motion.div
@@ -196,17 +190,17 @@ export function SuccessAnimation({ detection, isCorrect, pointsEarned, onContinu
                 <div className="p-3 rounded-xl bg-fg/5 border border-line text-center">
                   <Recycle className="w-5 h-5 text-brand mx-auto mb-1" aria-hidden="true" />
                   <p className="text-xs text-fg-dim">Recyclable</p>
-                  <p className="font-semibold text-fg">{detection.bin === 'recyclable' ? 'Yes' : 'No'}</p>
+                  <p className="font-semibold text-fg">{result.bin === 'recyclable' ? 'Yes' : 'No'}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-fg/5 border border-line text-center">
                   <Leaf className="w-5 h-5 text-green-primary mx-auto mb-1" aria-hidden="true" />
                   <p className="text-xs text-fg-dim">Compostable</p>
-                  <p className="font-semibold text-fg">{detection.bin === 'organic' ? 'Yes' : 'No'}</p>
+                  <p className="font-semibold text-fg">{result.bin === 'organic' ? 'Yes' : 'No'}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-fg/5 border border-line text-center">
                   <Shield className="w-5 h-5 text-amber-primary mx-auto mb-1" aria-hidden="true" />
                   <p className="text-xs text-fg-dim">Special Care</p>
-                  <p className="font-semibold text-fg">{detection.category === 'special' ? 'Required' : 'Not needed'}</p>
+                  <p className="font-semibold text-fg">{result.bin === 'special' ? 'Required' : 'Not needed'}</p>
                 </div>
               </motion.div>
             </div>

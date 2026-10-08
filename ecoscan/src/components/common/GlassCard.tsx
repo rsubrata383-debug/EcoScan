@@ -183,4 +183,4 @@ export function ProgressBar({ value, max = 100, color = 'green', className, anim
   );
 }
 
-export { SplashScreen } from './SplashScreen';
+
