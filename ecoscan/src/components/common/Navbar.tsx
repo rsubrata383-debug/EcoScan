@@ -1,9 +1,9 @@
-import { motion } from 'framer-motion';
-import { Leaf } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Logo } from './Logo';
-import { clsx } from 'clsx';
-import { useNavbarConfig } from '@/context/NavbarContext';
+import { motion } from "framer-motion";
+import { Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Logo } from "./Logo";
+import { clsx } from "clsx";
+import { useNavbarConfig } from "@/context/NavbarContext";
 
 export function Navbar() {
   const { config } = useNavbarConfig();
@@ -20,8 +20,10 @@ export function Navbar() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
       className={clsx(
-        'transition-all duration-300',
-        isScannerPage ? 'bg-bg/95 backdrop-blur-xl border-b border-line-strong' : 'bg-transparent',
+        "transition-all duration-300",
+        isScannerPage
+          ? "bg-bg/95 backdrop-blur-xl border-b border-line-strong"
+          : "bg-transparent",
       )}
     >
       <nav className="section-container" aria-label="Page navigation">
@@ -35,8 +37,12 @@ export function Navbar() {
           >
             <Logo size={28} variant="symbol" />
             <div className="min-w-0">
-              <span className="font-display font-bold text-lg text-fg sm:text-xl">EcoScan</span>
-              <p className="hidden text-fg-dim text-xs uppercase tracking-wider sm:block">AI Waste Scanner</p>
+              <span className="font-display font-bold text-lg text-fg sm:text-xl">
+                EcoScan
+              </span>
+              <p className="hidden text-fg-dim text-xs uppercase tracking-wider sm:block">
+                AI Waste Scanner
+              </p>
             </div>
           </motion.div>
 
@@ -49,8 +55,12 @@ export function Navbar() {
                 className="flex items-center gap-1.5 px-2 py-1.5 rounded-full glass sm:gap-2 sm:px-3"
               >
                 <Leaf className="w-4 h-4 text-brand" />
-                <span className="font-mono font-semibold text-fg tabular-nums">{ecoPoints}</span>
-                <span className="hidden text-fg-dim text-xs sm:inline">ECO</span>
+                <span className="font-mono font-semibold text-fg tabular-nums">
+                  {ecoPoints}
+                </span>
+                <span className="hidden text-fg-dim text-xs sm:inline">
+                  ECO
+                </span>
               </motion.div>
             )}
 
